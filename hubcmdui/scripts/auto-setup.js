@@ -91,9 +91,15 @@ async function autoSetup() {
     }
     
     // 启动服务器
+    const port = process.env.PORT || 3000;
+    const basePath = (() => {
+        const bp = (process.env.BASE_PATH || '').trim().replace(/\/+$/, '');
+        if (!bp) return '';
+        return bp.startsWith('/') ? bp : '/' + bp;
+    })();
     console.log('🌐 启动 HubCmdUI 服务器...');
-    console.log('📍 访问地址: http://localhost:3000');
-    console.log('🔧 管理面板: http://localhost:3000/admin');
+    console.log(`📍 访问地址: http://localhost:${port}${basePath}/`);
+    console.log(`🔧 管理面板: http://localhost:${port}${basePath}/admin`);
     console.log('👤 默认账户: root / admin@123\n');
     
     // 启动主服务器

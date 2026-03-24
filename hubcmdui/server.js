@@ -37,9 +37,51 @@ const { executeOnce } = require('./lib/initScheduler');
 const app = express();
 const server = http.createServer(app);
 
+// 解析 BASE_PATH 环境变量，支持通过 Nginx 等反向代理挂载到指定子路径
+// 例如: BASE_PATH=/docker-proxy 可让应用运行在 http://example.com/docker-proxy/
+const BASE_PATH = (() => {
+  const bp = (process.env.BASE_PATH || '').trim().replace(/\/+$/, '');
+  if (!bp) return '';
+  return bp.startsWith('/') ? bp : '/' + bp;
+})();
+
+if (BASE_PATH) {
+  logger.info(`BASE_PATH 已配置: ${BASE_PATH}`);
+}
+
 // 配置中间件
 app.use(cors());
 app.use(express.json());
+
+// 如果设置了 BASE_PATH，添加 URL 重写中间件，将子路径前缀从请求中剥离
+if (BASE_PATH) {
+  app.use((req, res, next) => {
+    if (req.path === BASE_PATH || req.path.startsWith(BASE_PATH + '/')) {
+      req.url = req.url.slice(BASE_PATH.length) || '/';
+      return next();
+    }
+    // 不在子路径下的请求重定向到子路径根
+    return res.redirect(302, BASE_PATH + '/');
+  });
+}
+
+// 动态提供前端配置脚本，注入 BASE_PATH 及 fetch 拦截器
+app.get('/js/config.js', (req, res) => {
+  res.type('application/javascript');
+  res.send(
+    `window.BASE_PATH = ${JSON.stringify(BASE_PATH)};\n` +
+    `(function () {\n` +
+    `  const _fetch = window.fetch.bind(window);\n` +
+    `  window.fetch = function (url, opts) {\n` +
+    `    if (typeof url === 'string' && url.startsWith('/') && window.BASE_PATH) {\n` +
+    `      url = window.BASE_PATH + url;\n` +
+    `    }\n` +
+    `    return _fetch(url, opts);\n` +
+    `  };\n` +
+    `})();\n`
+  );
+});
+
 app.use(express.static('web'));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(session({

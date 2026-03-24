@@ -57,7 +57,7 @@ async function initApp() {
             if (!isLoginPage) {
                 // 在非登录页，重定向到登录页
                 // console.log('未登录，重定向到登录页...');
-                window.location.href = '/admin';
+                window.location.href = (window.BASE_PATH || '') + '/admin';
                 return false;
             } else {
                 // 在登录页，显示登录框
