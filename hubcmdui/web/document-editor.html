@@ -23,6 +23,7 @@
     <!-- 自定义样式 -->
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="css/admin.css">
+    <link rel="stylesheet" href="css/mobile.css">
     
     <style>
         body {
@@ -287,13 +288,7 @@
         $(document).ready(function() {
             // 初始化 Editor.md
             initEditor();
-            
-            // 如果有文档 ID，则加载文档
-            if (docId) {
-                loadDocument(docId);
-                document.getElementById('pageTitle').textContent = '编辑文档';
-            }
-            
+
             // 绑定保存按钮事件
             document.getElementById('saveBtn').addEventListener('click', saveDocument);
             
@@ -340,6 +335,11 @@
                 indentUnit: 4,
                 // 使用官方默认工具栏配置
                 onload: function() {
+                    // 如果有文档 ID，则加载文档
+                    if (docId) {
+                        loadDocument(docId);
+                        document.getElementById('pageTitle').textContent = '编辑文档';
+                    }
                     console.log('Editor.md 初始化完成');
                 },
                 onchange: function() {
@@ -365,7 +365,7 @@
         
         async function loadDocument(id) {
             try {
-                const response = await fetch(`/api/documents/${id}`, {
+                const response = await fetch(`/api/documentation/documents/${id}`, {
                     credentials: 'same-origin'
                 });
                 
@@ -426,7 +426,7 @@
             document.getElementById('loadingOverlay').style.display = 'flex';
             
             try {
-                const url = currentDocId ? `/api/documents/${currentDocId}` : '/api/documents';
+                const url = currentDocId ? `/api/documentation/documents/${currentDocId}` : '/api/documentation/documents';
                 const method = currentDocId ? 'PUT' : 'POST';
                 
                 const response = await fetch(url, {
@@ -496,5 +496,6 @@
             }
         });
     </script>
+    <script src="js/mobile-menu.js"></script>
 </body>
 </html>

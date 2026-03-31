@@ -163,22 +163,118 @@ function isPasswordComplex(password) {
     return passwordRegex.test(password);
 }
 
+// 验证用户名格式
+function isUsernameValid(username) {
+    // 3-20位，只能包含字母、数字和下划线
+    const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+    return usernameRegex.test(username);
+}
+
+// 修改用户名
+async function changeUsername(event) {
+    if (event) {
+        event.preventDefault();
+    }
+    
+    const form = document.getElementById('changeUsernameForm');
+    const newUsername = form.querySelector('#ucNewUsername').value;
+    const password = form.querySelector('#ucUsernamePassword').value;
+    
+    // 验证表单
+    if (!newUsername || !password) {
+        return core.showAlert('所有字段都不能为空', 'error');
+    }
+    
+    // 用户名格式检查
+    if (!isUsernameValid(newUsername)) {
+        return core.showAlert('用户名格式不正确（3-20位，只能包含字母、数字和下划线）', 'error');
+    }
+    
+    // 显示加载状态
+    const submitButton = form.querySelector('button[type="submit"]');
+    const originalButtonText = submitButton.innerHTML;
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 提交中...';
+    
+    try {
+        const response = await fetch('/api/auth/change-username', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                newUsername,
+                password
+            })
+        });
+        
+        // 无论成功与否，去除加载状态
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalButtonText;
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || '修改用户名失败');
+        }
+        
+        const data = await response.json();
+        
+        // 清空表单
+        form.reset();
+        
+        // 设置倒计时并显示
+        let countDown = 5;
+        
+        Swal.fire({
+            title: '用户名修改成功',
+            html: `您的用户名已成功修改为 <b>${data.newUsername}</b>，系统将在 <b>${countDown}</b> 秒后自动退出，请使用新用户名重新登录。`,
+            icon: 'success',
+            timer: countDown * 1000,
+            timerProgressBar: true,
+            didOpen: () => {
+                const content = Swal.getHtmlContainer();
+                const timerInterval = setInterval(() => {
+                    countDown--;
+                    if (content) {
+                        const b = content.querySelectorAll('b')[1]; // 获取第二个b标签（倒计时）
+                        if (b) {
+                            b.textContent = countDown > 0 ? countDown : 0;
+                        }
+                    }
+                    if (countDown <= 0) clearInterval(timerInterval);
+                }, 1000);
+            },
+            allowOutsideClick: false,
+            showConfirmButton: true,
+            confirmButtonText: '确定'
+        }).then((result) => {
+            if (result.dismiss === Swal.DismissReason.timer || result.isConfirmed) {
+                auth.logout();
+            }
+        });
+    } catch (error) {
+        core.showAlert('修改用户名失败: ' + error.message, 'error');
+    }
+}
+
 // 检查密码强度
 function checkUcPasswordStrength() {
     const password = document.getElementById('ucNewPassword').value;
     const strengthSpan = document.getElementById('ucPasswordStrength');
-    const strengthBar = document.getElementById('strengthBar');
+    const strengthIndicator = document.getElementById('strengthIndicator');
     
     if (!password) {
-        strengthSpan.textContent = '';
-        if (strengthBar) strengthBar.style.width = '0%';
+        if (strengthSpan) strengthSpan.textContent = '';
+        if (strengthIndicator) {
+            strengthIndicator.className = 'strength-indicator';
+            strengthIndicator.style.width = '0';
+        }
         return;
     }
     
     let strength = 0;
     let strengthText = '';
-    let strengthColor = '';
-    let strengthWidth = '0%';
+    let strengthClass = '';
     
     // 长度检查
     if (password.length >= 8) strength++;
@@ -193,59 +289,55 @@ function checkUcPasswordStrength() {
     // 包含特殊字符
     if (/[.,\-_+=()[\]{}|\\;:'"<>?/@$!%*#?&]/.test(password)) strength++;
     
-    // 根据强度设置文本和颜色
-    switch(strength) {
-        case 0:
-        case 1:
-            strengthText = '密码强度：非常弱';
-            strengthColor = '#FF4136';
-            strengthWidth = '20%';
-            break;
-        case 2:
-            strengthText = '密码强度：弱';
-            strengthColor = '#FF851B';
-            strengthWidth = '40%';
-            break;
-        case 3:
-            strengthText = '密码强度：中';
-            strengthColor = '#FFDC00';
-            strengthWidth = '60%';
-            break;
-        case 4:
-            strengthText = '密码强度：强';
-            strengthColor = '#2ECC40';
-            strengthWidth = '80%';
-            break;
-        case 5:
-            strengthText = '密码强度：非常强';
-            strengthColor = '#3D9970';
-            strengthWidth = '100%';
-            break;
+    // 根据强度设置文本和样式类
+    if (strength <= 2) {
+        strengthText = '密码强度：弱';
+        strengthClass = 'weak';
+    } else if (strength <= 3) {
+        strengthText = '密码强度：中';
+        strengthClass = 'medium';
+    } else {
+        strengthText = '密码强度：强';
+        strengthClass = 'strong';
     }
     
-    // 用span元素包裹文本，并设置为不换行
-    strengthSpan.innerHTML = `<span style="white-space: nowrap;">${strengthText}</span>`;
-    strengthSpan.style.color = strengthColor;
+    // 更新UI
+    if (strengthSpan) {
+        strengthSpan.textContent = strengthText;
+        strengthSpan.className = `password-strength-text ${strengthClass}`;
+    }
     
-    if (strengthBar) {
-        strengthBar.style.width = strengthWidth;
-        strengthBar.style.backgroundColor = strengthColor;
+    if (strengthIndicator) {
+        strengthIndicator.className = `strength-indicator ${strengthClass}`;
     }
 }
 
 // 切换密码可见性
-function togglePasswordVisibility(inputId) {
+function togglePasswordVisibility(inputId, btnElement) {
     const passwordInput = document.getElementById(inputId);
-    const toggleBtn = passwordInput.nextElementSibling.querySelector('i');
+    if (!passwordInput) return;
+    
+    // 获取图标元素
+    let toggleIcon;
+    if (btnElement) {
+        toggleIcon = btnElement.querySelector('i');
+    } else {
+        const nextSibling = passwordInput.nextElementSibling;
+        toggleIcon = nextSibling ? nextSibling.querySelector('i') : null;
+    }
     
     if (passwordInput.type === 'password') {
         passwordInput.type = 'text';
-        toggleBtn.classList.remove('fa-eye');
-        toggleBtn.classList.add('fa-eye-slash');
+        if (toggleIcon) {
+            toggleIcon.classList.remove('fa-eye');
+            toggleIcon.classList.add('fa-eye-slash');
+        }
     } else {
         passwordInput.type = 'password';
-        toggleBtn.classList.remove('fa-eye-slash');
-        toggleBtn.classList.add('fa-eye');
+        if (toggleIcon) {
+            toggleIcon.classList.remove('fa-eye-slash');
+            toggleIcon.classList.add('fa-eye');
+        }
     }
 }
 
@@ -312,11 +404,20 @@ function loadUserStats() {
 const userCenter = {
     init: function() {
         // console.log('初始化用户中心模块...');
-        // 可以在这里调用初始化逻辑，也可以延迟到需要时调用
+        // 初始化修改用户名表单事件
+        const changeUsernameForm = document.getElementById('changeUsernameForm');
+        if (changeUsernameForm) {
+            changeUsernameForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                changeUsername();
+            });
+        }
         return Promise.resolve(); // 返回一个已解决的 Promise，保持与其他模块一致
     },
     getUserInfo,
     changePassword,
+    changeUsername,
+    isUsernameValid,
     checkUcPasswordStrength,
     initUserCenter,
     loadUserStats,

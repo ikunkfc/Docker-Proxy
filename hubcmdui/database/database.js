@@ -105,6 +105,22 @@ class Database {
         enabled BOOLEAN DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
+
+      // Registry 配置表 - 用于存储各 Registry 平台的启用状态和代理地址
+      `CREATE TABLE IF NOT EXISTS registry_configs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        registry_id TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        icon TEXT,
+        color TEXT,
+        prefix TEXT,
+        description TEXT,
+        proxy_url TEXT,
+        enabled BOOLEAN DEFAULT 0,
+        sort_order INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`
     ];
 
@@ -199,14 +215,14 @@ class Database {
             title: '欢迎使用 Docker 镜像代理加速系统',
             content: `## 系统介绍
 
-这是一个基于 Nginx 的 Docker 镜像代理加速系统，可以帮助您加速 Docker 镜像的下载和部署。
+这是一个基于官方 Registry 的 Docker 镜像代理加速系统，可以帮助您加速 Docker 镜像的下载和部署。
 
 ## 主要功能
 
-- 🚀 **镜像加速**: 提供多个 Docker 镜像仓库的代理加速
-- 🔧 **配置管理**: 简单易用的 Web 管理界面
-- 📊 **监控统计**: 实时监控代理服务状态
-- 📖 **文档管理**: 内置文档系统，方便管理和分享
+- 🚀 **镜像加速**: 提供多个 Docker Registr 平台镜像仓库的代理加速
+- 🔧 **一键安装**: 支持在不同Linux发行版下一键安装部署
+- 📊 **监控统计**: 实时监控Docker容器服务状态，支持TG、邮箱告警
+- 📖 **镜像搜索**: 提供Hubcmd-UI 镜像搜索管理系统，支持多Registry平台的镜像搜索
 
 ## 快速开始
 
